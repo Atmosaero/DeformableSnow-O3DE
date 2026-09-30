@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.22)
+project(DeformableSnowCoreTests LANGUAGES CXX)
+enable_testing()
+add_executable(SnowSimulationTests SnowSimulationTests.cpp)
+target_include_directories(SnowSimulationTests PRIVATE ../Include)
+target_compile_features(SnowSimulationTests PRIVATE cxx_std_17)
+add_test(NAME SnowSimulation COMMAND SnowSimulationTests)

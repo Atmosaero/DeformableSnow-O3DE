@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">
+  <title>Snow Interactor</title>
+  <!-- Original footprints; paired with Deformable Snow in the Terrain icon style. -->
+  <g fill="#70B7D6">
+    <g transform="rotate(-18 7.5 16)">
+      <path d="M5 16c-1-3-1-6 2.5-6s3.5 3 2.5 6l-.5 2h-4z"/>
+      <rect x="5.8" y="19.5" width="3.4" height="3" rx="1"/>
+    </g>
+    <g transform="rotate(18 16.5 8)">
+      <path d="M14 8c-1-3-1-6 2.5-6S20 5 19 8l-.5 2h-4z"/>
+      <rect x="14.8" y="11.5" width="3.4" height="3" rx="1"/>
+    </g>
+  </g>
+</svg>

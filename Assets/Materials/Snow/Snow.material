@@ -1,0 +1,16 @@
+{
+    "materialType": "Materials/Types/StandardPBR.materialtype",
+    "materialTypeVersion": 5,
+    "description": "Powder snow; vertex color encodes compaction and raised snow.",
+    "propertyValues": {
+        "baseColor.textureMap": "Textures/Snow/SnowPowder_basecolor.png",
+        "baseColor.factor": 1.0,
+        "vertexColor.enable": true,
+        "vertexColor.blendMode": "Multiply",
+        "vertexColor.factor": 1.0,
+        "roughness.factor": 0.92,
+        "metallic.factor": 0.0,
+        "normal.textureMap": "Textures/Snow/SnowPowder_normal.png",
+        "normal.factor": 1.0
+    }
+}

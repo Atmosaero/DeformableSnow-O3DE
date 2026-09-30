@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25" fill="none">
+  <title>Deformable Snow viewport</title>
+  <rect x=".5" y=".5" width="24" height="24" rx="3" fill="#70B7D6"/>
+  <g transform="translate(2.5 2.5) scale(.8)">
+    <g stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12.5 2v10M8.2 4.5l8.6 5M8.2 9.5l8.6-5"/>
+      <path d="M10.7 2.8l1.8 1.4 1.8-1.4M8.2 6.5l2.1-.8-.3-2.2M8.2 7.5l2.1.8-.3 2.2M10.7 11.2l1.8-1.4 1.8 1.4M16.8 7.5l-2.1.8.3 2.2M16.8 6.5l-2.1-.8.3-2.2"/>
+    </g>
+    <path d="M2 16c3-3 5-3 8 0 1.7 1.7 3.3 1.7 5 0 3-3 5-3 8 0v5H2z" fill="white"/>
+    <path d="M3 23h19" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+</svg>

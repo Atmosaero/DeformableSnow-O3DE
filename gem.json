@@ -1,0 +1,32 @@
+{
+    "gem_name": "DeformableSnow",
+    "version": "1.0.0",
+    "display_name": "Deformable Snow",
+    "license": "MIT",
+    "license_url": "https://github.com/Atmosaero/DeformableSnow-O3DE/blob/main/LICENSE",
+    "origin": "Atmosaero",
+    "origin_url": "https://github.com/Atmosaero",
+    "type": "Code",
+    "summary": "Deformable snow surfaces with footsteps, object tracks, gradual recovery and a bundled powder snow material.",
+    "canonical_tags": [
+        "Gem"
+    ],
+    "user_tags": [
+        "AtomShader","Rendering","DeformableSnow","Environment"
+    ],
+    "platforms": [
+        "Windows"
+    ],
+    "icon_path": "preview.png",
+    "requirements": "Atom renderer. Validated with O3DE 26.05 on Windows.",
+    "documentation_url": "https://github.com/Atmosaero/DeformableSnow-O3DE#readme",
+    "dependencies": [
+        "Atom_RPI",
+        "Atom"
+    ],
+    "repo_uri": "https://github.com/Atmosaero/DeformableSnow-O3DE.git",
+    "compatible_engines": [
+    ],
+    "engine_api_dependencies":[
+    ]
+}
