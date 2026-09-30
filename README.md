@@ -86,5 +86,4 @@ snapshots and ordered event replay for local state restoration.
 
 ## License
 
-[MIT](LICENSE). O3DE-derived scaffold files retain their original copyright and
-SPDX notices.
+[MIT](LICENSE).
