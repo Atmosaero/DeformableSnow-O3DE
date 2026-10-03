@@ -9,8 +9,9 @@ snow recovery.
 ## Features
 
 - Three stamp shapes: footsteps, rolling objects and ragdolls.
-- Contact tracking with alternating feet, continuous tracks and teleport handling.
-- Configurable grid size, snow height, recovery time and update rate.
+- A bundled **Snow Interactor** component for moving entities, with no project dependency.
+- Distance-based alternating feet, continuous tracks, two-foot landings and teleport handling.
+- Configurable grid size, snow height, track lifetime, recovery duration and update rate.
 - A **Material** asset picker with a bundled powder snow material and textures.
 - C++ and Lua gameplay APIs, with a standalone Lua demonstration.
 - Per-surface simulation and GPU buffers; no network transport or authority mode.
@@ -25,14 +26,17 @@ a snow height of 18 cm above the entity origin. The default update rate is 20 Hz
 2. Select [SnowDemo.lua](Assets/Scripts/DeformableSnow/SnowDemo.lua).
 3. Leave **SnowSurface** empty to use the same entity, then enter game mode.
 
-The script draws three animated lanes and loops by default. It needs no character,
+The script draws three animated lanes, waits for natural recovery, then repeats.
+It clears the field only at startup. It needs no character,
 physics actors or project-specific interactor. Use an illuminated level and place
 the camera above the snow to see the tracks.
 
-For gameplay, place a ground collider below the snow and send grounded contacts
-from your character, physics or animation logic. The **Snow Interactor** component
-in the Wintercore project is a project integration, not part of this gem's public
-component set. The gem's contact API can be used by other integrations.
+For gameplay, add **Snow Interactor** to your moving entity and select its
+**Snow surface**. Choose a track type, radius and local contact offset (feet,
+object bottom or pelvis). With **Require ground contact** enabled, a physics
+ground collider is required; the support ray ignores the source body's collider.
+Disable that option for scripted movement without physics. Both components are
+provided by this gem. Animation and physics code can also use the contact API.
 
 ## Material
 
@@ -70,7 +74,11 @@ Use `SubmitContact` for spacing, alternating feet and continuous tracks. Send
 `Clear` resets the surface. `GetHeight` samples its local Z height and returns world
 Z, or NaN outside its bounds. It is not a world-vertical raycast against tilted snow.
 
-Recovery is exponential, with a default 45-second time constant; zero disables it.
+By default a track lives for **10 seconds**, holding its shape for 8 seconds and
+smoothly returning to the original surface during the final **2 seconds**.
+**Track lifetime** includes **Recovery seconds**. Setting Recovery seconds to zero
+keeps tracks indefinitely. Recovery updates only cells with an active imprint;
+expired cells leave the recovery list, and idle surfaces stop uploading buffers.
 Raised snow does not fill an existing trench. The C++ core additionally provides
 snapshots and ordered event replay for local state restoration.
 

@@ -12,12 +12,14 @@ namespace DeformableSnow
     struct SnowSettings
     {
         uint32_t columns = 337, rows = 273;
-        float cell = .125f, level = .18f, recoverySeconds = 45.f;
+        float cell = .125f, level = .18f, recoverySeconds = 2.f;
+        float lifetimeSeconds = 10.f;
         bool IsValid() const
         {
             return columns >= 3 && columns <= 1025 && rows >= 3 && rows <= 1025
                 && std::isfinite(cell) && cell >= .025f && cell <= 10.f
-                && std::isfinite(level) && std::isfinite(recoverySeconds) && recoverySeconds >= 0;
+                && std::isfinite(level) && std::isfinite(recoverySeconds) && recoverySeconds >= 0
+                && std::isfinite(lifetimeSeconds) && lifetimeSeconds > 0;
         }
     };
 
@@ -37,14 +39,16 @@ namespace DeformableSnow
         float position[3], normal[3], tangent[4], bitangent[3], uv[2], color[4];
     };
 
-    // An authoritative snapshot includes the entire recovered field. A bounded list
-    // of recent stamps alone cannot reconstruct old, partially recovered tracks.
+    // Keep per-cell ages and original displacements as well as the visible field,
+    // so restoring a partially recovered track does not restart its lifetime.
     struct SnowSnapshot
     {
         SnowSettings settings;
         uint64_t sequence = 0;
         double time = 0;
         std::vector<float> heights;
+        std::vector<float> stampedHeights;
+        std::vector<double> stampedTimes;
     };
 
     struct SnowEvent
@@ -62,6 +66,10 @@ namespace DeformableSnow
             if (!settings.IsValid()) return false;
             m_settings = settings;
             m_heights.assign(size_t(settings.columns) * settings.rows, 0);
+            m_stampedHeights.assign(m_heights.size(), 0);
+            m_stampedTimes.assign(m_heights.size(), 0);
+            m_activeFlags.assign(m_heights.size(), false);
+            m_active.clear();
             m_base.resize(m_heights.size());
             m_vertices.resize(m_heights.size());
             m_indices.clear();
@@ -119,6 +127,17 @@ namespace DeformableSnow
                     if (d < 0) h = std::max(-.17f, std::min(h, d));
                     else if (h >= 0) h = std::min(.12f, std::max(h, d));
                     changed |= old != h;
+                    if (old != h)
+                    {
+                        const auto i = size_t(y) * m_settings.columns + x;
+                        m_stampedHeights[i] = h;
+                        m_stampedTimes[i] = m_time;
+                        if (!m_activeFlags[i])
+                        {
+                            m_active.push_back(i);
+                            m_activeFlags[i] = true;
+                        }
+                    }
                 }
             m_dirty |= changed;
             return changed;
@@ -137,14 +156,27 @@ namespace DeformableSnow
             if (!std::isfinite(seconds) || seconds <= 0) return;
             m_time += seconds;
             if (m_settings.recoverySeconds <= 0) return;
-            const float alpha = std::exp(-seconds / m_settings.recoverySeconds);
-            for (auto& h : m_heights)
+            const double lifetime = m_settings.lifetimeSeconds;
+            const double recovery = std::min(m_settings.recoverySeconds, m_settings.lifetimeSeconds);
+            const double recoveryStart = lifetime - recovery;
+            size_t retained = 0;
+            for (const auto i : m_active)
             {
+                auto& h = m_heights[i];
                 const float old = h;
-                h *= alpha;
-                if (std::abs(h) < .000001f) h = 0;
+                const double age = m_time - m_stampedTimes[i];
+                const double t = std::clamp((age - recoveryStart) / recovery, 0.0, 1.0);
+                const float strength = float(1.0 - t * t * (3.0 - 2.0 * t));
+                h = m_stampedHeights[i] * strength;
                 m_dirty |= old != h;
+                if (age >= lifetime)
+                {
+                    m_activeFlags[i] = false;
+                    m_stampedHeights[i] = 0;
+                }
+                else m_active[retained++] = i;
             }
+            m_active.resize(retained);
         }
 
         // Call on a replica using ordered server events and server time, never a
@@ -160,16 +192,36 @@ namespace DeformableSnow
             return true;
         }
 
-        SnowSnapshot Snapshot() const { return {m_settings, m_sequence, m_time, m_heights}; }
+        SnowSnapshot Snapshot() const
+        {
+            return {m_settings, m_sequence, m_time, m_heights, m_stampedHeights, m_stampedTimes};
+        }
         bool Restore(const SnowSnapshot& snapshot)
         {
             if (!snapshot.settings.IsValid() || !std::isfinite(snapshot.time) || snapshot.time < 0
-                || snapshot.heights.size() != size_t(snapshot.settings.columns) * snapshot.settings.rows) return false;
-            for (float h : snapshot.heights) if (!std::isfinite(h) || h < -.17f || h > .12f) return false;
+                || snapshot.heights.size() != size_t(snapshot.settings.columns) * snapshot.settings.rows
+                || snapshot.stampedHeights.size() != snapshot.heights.size()
+                || snapshot.stampedTimes.size() != snapshot.heights.size()) return false;
+            for (size_t i = 0; i < snapshot.heights.size(); ++i)
+            {
+                const float h = snapshot.heights[i], stamped = snapshot.stampedHeights[i];
+                const double time = snapshot.stampedTimes[i];
+                if (!std::isfinite(h) || h < -.17f || h > .12f
+                    || !std::isfinite(stamped) || stamped < -.17f || stamped > .12f
+                    || !std::isfinite(time) || time < 0 || time > snapshot.time) return false;
+            }
             Reset(snapshot.settings);
             m_time = snapshot.time;
             m_sequence = snapshot.sequence;
             m_heights = snapshot.heights;
+            m_stampedHeights = snapshot.stampedHeights;
+            m_stampedTimes = snapshot.stampedTimes;
+            for (size_t i = 0; i < m_heights.size(); ++i)
+                if (m_stampedHeights[i] != 0)
+                {
+                    m_active.push_back(i);
+                    m_activeFlags[i] = true;
+                }
             return true;
         }
 
@@ -207,11 +259,16 @@ namespace DeformableSnow
         const std::vector<uint32_t>& Indices() const { return m_indices; }
         const std::vector<SnowEvent>& Journal() const { return m_journal; }
         bool Dirty() const { return m_dirty; }
+        size_t ActiveCellCount() const { return m_active.size(); }
     private:
         float X(uint32_t x) const { return (float(x) - (m_settings.columns - 1) * .5f) * m_settings.cell; }
         float Y(uint32_t y) const { return (float(y) - (m_settings.rows - 1) * .5f) * m_settings.cell; }
         SnowSettings m_settings;
         std::vector<float> m_base, m_heights;
+        std::vector<float> m_stampedHeights;
+        std::vector<double> m_stampedTimes;
+        std::vector<size_t> m_active;
+        std::vector<bool> m_activeFlags;
         std::vector<SnowVertex> m_vertices;
         std::vector<uint32_t> m_indices;
         std::vector<SnowEvent> m_journal;

@@ -37,11 +37,35 @@ int main()
     snow.Reset({});
     snow.Stamp({0,0,0,.66f,0,2});
     Check(std::abs(snow.Snapshot().heights[center] + .14f) < 1e-6f, "ragdoll depth");
-    snow.Advance(45);
-    Check(std::abs(snow.Snapshot().heights[center] + .14f / std::exp(1.f)) < 1e-6f, "recovery half life");
-    snow.Advance(1000);
+    snow.Refresh();
+    snow.Advance(8);
+    Check(!snow.Dirty() && std::abs(snow.Snapshot().heights[center] + .14f) < 1e-6f, "track holds before recovery");
+    snow.Advance(1);
+    Check(std::abs(snow.Snapshot().heights[center] + .07f) < 1e-6f, "half recovered at nine seconds");
+    SnowSimulation restored;
+    Check(restored.Restore(snow.Snapshot()), "restore a recovering track");
+    restored.Advance(1);
+    Check(restored.Snapshot().heights[center] == 0, "restore preserves expiration time");
+    snow.Refresh();
+    snow.Advance(1);
     Check(snow.Dirty() && snow.Snapshot().heights[center] == 0, "last recovery step stays dirty");
     snow.Refresh();
+    snow.Advance(1);
+    Check(!snow.Dirty() && snow.ActiveCellCount() == 0, "expired cells stop recovery work and uploads");
+    const auto expired = snow.Snapshot();
+    Check(std::all_of(expired.heights.begin(), expired.heights.end(), [](float h) { return h == 0; }), "both depressions and raised rims recover completely");
+    SnowSimulation singleStep, splitStep;
+    singleStep.Reset({}); splitStep.Reset({});
+    singleStep.Stamp({}); splitStep.Stamp({});
+    singleStep.Advance(9);
+    for (int i = 0; i < 36; ++i) splitStep.Advance(.25f);
+    Check(singleStep.Snapshot().heights == splitStep.Snapshot().heights, "recovery independent of tick subdivision");
+    Check(singleStep.Stamp({}), "restamp recovering cell");
+    singleStep.Advance(8);
+    Check(std::abs(singleStep.Snapshot().heights[center] + .12f) < 1e-6f, "new imprint gets its own lifetime");
+    auto persistentSettings = SnowSettings{}; persistentSettings.recoverySeconds = 0;
+    restored.Reset(persistentSettings); restored.Stamp({}); restored.Advance(1000);
+    Check(std::abs(restored.Snapshot().heights[center] + .12f) < 1e-6f, "zero recovery keeps tracks");
     Check(!snow.Stamp({1e30f, 0, 0, .36f, 0, 0}), "far stamp safely rejected before integer cast");
     Check(!snow.Stamp({0,0,5,.36f,0,0}), "airborne stamp rejected");
     Check(!snow.Stamp({0,0,0,-1,0,0}), "negative radius rejected");
@@ -65,6 +89,8 @@ int main()
     Check(client.Snapshot().heights == server.Snapshot().heights, "late join retains aged tracks");
     auto bad = server.Snapshot(); bad.heights[0] = std::numeric_limits<float>::infinity();
     Check(!client.Restore(bad), "bad snapshot rejected atomically");
+    bad = server.Snapshot(); bad.stampedTimes[0] = bad.time + 1;
+    Check(!client.Restore(bad), "future cell timestamp rejected atomically");
     Check(client.Snapshot().heights == server.Snapshot().heights, "invalid snapshot does not mutate field");
     SnowContactTracker feet, rolling;
     auto foot = feet.Update({}, 1, true);
@@ -76,5 +102,20 @@ int main()
     rolling.Update({0,0,0,.7f,0,1}, 1, true);
     Check(rolling.Update({1,0,0,.7f,0,1}, 1, true).size() == 5, "continuous rolling trail");
     Check(rolling.Update({5,0,0,.7f,0,1}, 1, true).size() == 1, "teleport does not bridge trail");
+    foot = feet.Update({1,0,0,.36f,0,0}, 0, true);
+    Check(foot.size() == 2 && foot[0].y * foot[1].y < 0, "landing leaves both feet without a walking segment");
+    Check(feet.Update({1,0,0,.36f,0,0}, 0, true).empty(), "standing after landing adds no stamps");
+    SnowContactTracker coarse, fine;
+    coarse.Update({}, 0, true); fine.Update({}, 0, true);
+    const auto coarseStamps = coarse.Update({1.4f,0,0,.36f,0,0}, .1f, true);
+    std::vector<SnowStamp> fineStamps;
+    for (int i = 1; i <= 14; ++i)
+    {
+        auto emitted = fine.Update({float(i)*.1f,0,0,.36f,0,0}, .1f, true);
+        fineStamps.insert(fineStamps.end(), emitted.begin(), emitted.end());
+    }
+    Check(coarseStamps.size() == fineStamps.size() && coarseStamps.size() >= 3, "slow movement and sample-independent spacing");
+    for (size_t i = 0; i < coarseStamps.size(); ++i)
+        Check(std::abs(coarseStamps[i].x-fineStamps[i].x)<1e-5f && coarseStamps[i].y==fineStamps[i].y, "same footprint positions across sample rates");
     std::cout << checks << " checks passed\n";
 }

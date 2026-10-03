@@ -46,12 +46,13 @@ namespace DeformableSnow
     {
         if (auto* sc = azrtti_cast<AZ::SerializeContext*>(context))
         {
-            sc->Class<DeformableSnowComponentConfig, AZ::ComponentConfig>()->Version(2, &ConvertSnowConfig)
+            sc->Class<DeformableSnowComponentConfig, AZ::ComponentConfig>()->Version(3, &ConvertSnowConfig)
                 ->Field("Columns", &DeformableSnowComponentConfig::m_columns)
                 ->Field("Rows", &DeformableSnowComponentConfig::m_rows)
                 ->Field("CellSize", &DeformableSnowComponentConfig::m_cell)
                 ->Field("SnowLevel", &DeformableSnowComponentConfig::m_level)
                 ->Field("RecoverySeconds", &DeformableSnowComponentConfig::m_recoverySeconds)
+                ->Field("LifetimeSeconds", &DeformableSnowComponentConfig::m_lifetimeSeconds)
                 ->Field("UpdateRate", &DeformableSnowComponentConfig::m_updateRate)
                 ->Field("MaterialAsset", &DeformableSnowComponentConfig::m_material);
             if (auto* ec = sc->GetEditContext())
@@ -64,7 +65,9 @@ namespace DeformableSnow
                     ->DataElement(0, &DeformableSnowComponentConfig::m_cell, "Cell size", "Metres per cell")
                         ->Attribute(AZ::Edit::Attributes::Min, .025f)->Attribute(AZ::Edit::Attributes::Max, 10.f)
                     ->DataElement(0, &DeformableSnowComponentConfig::m_level, "Snow level", "Local height in metres")
-                    ->DataElement(0, &DeformableSnowComponentConfig::m_recoverySeconds, "Recovery seconds", "Exponential recovery time; zero disables recovery")
+                    ->DataElement(0, &DeformableSnowComponentConfig::m_lifetimeSeconds, "Track lifetime", "Seconds until a track disappears completely, including recovery")
+                        ->Attribute(AZ::Edit::Attributes::Min, .01f)
+                    ->DataElement(0, &DeformableSnowComponentConfig::m_recoverySeconds, "Recovery seconds", "Smooth recovery during the final seconds of a track's lifetime; zero keeps tracks indefinitely")
                         ->Attribute(AZ::Edit::Attributes::Min, 0.f)
                     ->DataElement(0, &DeformableSnowComponentConfig::m_updateRate, "Update rate", "Updates per second")
                         ->Attribute(AZ::Edit::Attributes::Min, 1.f)->Attribute(AZ::Edit::Attributes::Max, 60.f)
@@ -130,7 +133,7 @@ namespace DeformableSnow
     void DeformableSnowComponentController::Rebuild()
     {
         SnowSettings settings{m_configuration.m_columns, m_configuration.m_rows, m_configuration.m_cell,
-            m_configuration.m_level, m_configuration.m_recoverySeconds};
+            m_configuration.m_level, m_configuration.m_recoverySeconds, m_configuration.m_lifetimeSeconds};
         if (!settings.IsValid())
         {
             AZ_Warning("DeformableSnow", false, "Invalid snow configuration; using safe defaults");
@@ -182,7 +185,6 @@ namespace DeformableSnow
         AZ::u32 kind, float radius, float yaw, float speed, bool supported)
     {
         if (!source.IsValid() || kind > 2 || !position.IsFinite()) return;
-        if (!supported) { ForgetContact(source); return; }
         if (m_contacts.size() >= 1024 && m_contacts.find(source) == m_contacts.end()) return;
         const SnowStamp contact{position.GetX(), position.GetY(), position.GetZ(), radius, yaw, uint8_t(kind)};
         if (!contact.IsValid()) return;

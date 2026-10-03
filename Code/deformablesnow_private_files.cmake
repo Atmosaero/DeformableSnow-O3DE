@@ -7,6 +7,8 @@
 #
 
 set(FILES
+    Source/Components/SnowInteractorComponent.h
+    Source/Components/SnowInteractorComponent.cpp
     Source/Render/SnowMesh.h
     Source/Render/SnowMesh.cpp
     Source/DeformableSnowModuleInterface.cpp

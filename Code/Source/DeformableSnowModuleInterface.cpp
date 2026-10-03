@@ -5,6 +5,7 @@
 #include <DeformableSnow/DeformableSnowTypeIds.h>
 
 #include <Clients/DeformableSnowSystemComponent.h>
+#include <Components/SnowInteractorComponent.h>
 
 namespace DeformableSnow
 {
@@ -21,6 +22,7 @@ namespace DeformableSnow
         // This happens through the [MyComponent]::Reflect() function.
         m_descriptors.insert(m_descriptors.end(), {
             DeformableSnowSystemComponent::CreateDescriptor(),
+            SnowInteractorComponent::CreateDescriptor(),
             });
     }
 

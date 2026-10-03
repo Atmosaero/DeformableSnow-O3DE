@@ -5,7 +5,7 @@ local SnowDemo = {
         SnowSurface = { default = EntityId(), description = "Snow entity; empty uses this entity" },
         StepInterval = { default = 0.12, description = "Seconds between samples" },
         Loop = { default = true, description = "Clear the snow and repeat" },
-        RestartDelay = { default = 3.0, description = "Seconds to display the completed tracks" }
+        RestartDelay = { default = 12.0, description = "Pause for natural recovery before drawing again; use at least the surface's track lifetime" }
     }
 }
 
@@ -16,6 +16,7 @@ function SnowDemo:OnActivate()
     end
     self.sample = 0
     self.reportedDeformation = false
+    self.started = false
     self.wait = 0.25 -- Wait for the snow component to activate before sending requests.
     self.handler = TickBus.Connect(self)
 end
@@ -43,8 +44,9 @@ function SnowDemo:OnTick(deltaTime, timePoint)
         end
         self.sample = 0
     end
-    if self.sample == 0 then
+    if not self.started then
         SnowSurfaceRequestBus.Event.Clear(self.surface)
+        self.started = true
     end
 
     local world = TransformBus.Event.GetWorldTM(self.surface)

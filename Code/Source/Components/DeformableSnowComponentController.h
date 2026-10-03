@@ -17,7 +17,8 @@ namespace DeformableSnow
         DeformableSnowComponentConfig();
         static void Reflect(AZ::ReflectContext* context);
         AZ::u32 m_columns = 337, m_rows = 273;
-        float m_cell = .125f, m_level = .18f, m_recoverySeconds = 45.f, m_updateRate = 20.f;
+        float m_cell = .125f, m_level = .18f, m_recoverySeconds = 2.f, m_updateRate = 20.f;
+        float m_lifetimeSeconds = 10.f;
         AZ::Data::Asset<AZ::RPI::MaterialAsset> m_material;
     };
     class DeformableSnowComponentController final
